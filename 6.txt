@@ -1,0 +1,39 @@
+#6
+!pip install -q llama-index llama-index-llms-openai-like pandas
+
+import os
+import pandas as pd
+from llama_index.core import Document, VectorStoreIndex, Settings
+from llama_index.core.embeddings import MockEmbedding
+from llama_index.llms.openai_like import OpenAILike
+
+#os.environ["GROQ_API_KEY"] = "YOUR_GROQ_API_KEY"
+
+Settings.llm = OpenAILike(
+    model="openai/gpt-oss-120b",
+    api_base="https://api.groq.com/openai/v1",
+    api_key=os.environ["GROQ_API_KEY"],
+    is_chat_model=True
+)
+
+Settings.embed_model = MockEmbedding(embed_dim=384)
+
+df = pd.DataFrame({
+    "Month": ["Jan", "Feb", "Mar", "Apr", "May"],
+    "Product": ["Laptop", "Mobile", "Tablet", "Laptop", "Mobile"],
+    "Region": ["South", "North", "East", "West", "South"],
+    "Revenue": [50000, 40000, 25000, 60000, 55000],
+    "Profit": [10000, 8000, 4000, 12000, 11000]
+})
+
+display(df)
+
+index = VectorStoreIndex.from_documents([
+    Document(text="Sales Report:\n" + df.to_string(index=False))
+])
+
+response = index.as_query_engine().query(
+    "Which product generated the highest total revenue? Show calculation."
+)
+
+print(response)

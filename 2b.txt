@@ -1,19 +1,22 @@
-#2b
 from groq import Groq
 client=Groq(
-    api_key="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"
+    api_key="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"
 )
-response=client.chat.completions.create(
+reponse=client.chat.completions.create(
     model="openai/gpt-oss-120b",
     messages=[
         {
-        "role":"user",
-        "content":"""
-        goal:
-        oraganize a college annual sports event.
-        generate step-by-step plan.
-        """
+            "role":"user",
+            "content":"""
+            question:
+            what is 25 * 10?
+            show:
+            thought
+            action
+            observation
+            final response
+            """
         }
     ]
 )
-print(response.choices[0].message.content)
+print(reponse.choices[0].message.content)

@@ -1,7 +1,7 @@
 #2a
 from groq import Groq
 client=Groq(
-    api_key="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"
+    api_key=""
 )
 response=client.chat.completions.create(
     model="openai/gpt-oss-120b",

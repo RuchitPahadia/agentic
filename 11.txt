@@ -1,0 +1,33 @@
+#11
+!pip install -q pyautogen
+!pip install autogen
+
+import os
+from autogen import AssistantAgent, UserProxyAgent
+
+#os.environ["GROQ_API_KEY"] = "YOUR_GROQ_API_KEY"
+
+config = {
+    "config_list": [{
+        "model": "openai/gpt-oss-120b",
+        "api_key": os.environ["GROQ_API_KEY"],
+        "base_url": "https://api.groq.com/openai/v1"
+    }]
+}
+
+agent = AssistantAgent(
+    name="Research_Agent",
+    system_message="You are an AI research assistant.",
+    llm_config=config
+)
+
+user = UserProxyAgent(
+    name="User",
+    human_input_mode="NEVER",
+    code_execution_config=False
+)
+
+user.initiate_chat(
+    agent,
+    message="Give a short research summary about Generative AI."
+)

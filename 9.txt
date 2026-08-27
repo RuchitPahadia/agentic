@@ -1,0 +1,91 @@
+
+!pip install -q langgraph langchain-groq
+!pip install -q -U langgraph langchain-groq langchain-core
+
+import os
+from typing import TypedDict
+from langgraph.graph import StateGraph, END
+from langchain_groq import ChatGroq
+from IPython.display import Image, display
+
+os.environ["GROQ_API_KEY"] =""
+
+llm = ChatGroq(model="openai/gpt-oss-120b")
+
+class State(TypedDict):
+    query: str
+    category: str
+    response: str
+
+def router(s):
+    r = llm.invoke(
+        f"Classify as faq, order or complaint. Return one word: {s['query']}"
+    ).content.lower()
+    return {
+        "category": "order" if "order" in r
+        else "complaint" if "complaint" in r else "faq"
+    }
+
+def faq(s):
+    return {"response": llm.invoke(
+        f"Answer politely: {s['query']}"
+    ).content}
+
+def order(s):
+    return {"response": llm.invoke(
+        f"Help with order. Ask for order ID if missing: {s['query']}"
+    ).content}
+
+def complaint(s):
+    return {"response": llm.invoke(
+        f"Apologize and suggest next step: {s['query']}"
+    ).content}
+
+def route(s):
+    return {
+        "faq": "FAQ",
+        "order": "Order",
+        "complaint": "Complaint"
+    }[s["category"]]
+
+g = StateGraph(State)
+
+g.add_node("Router_Agent", router)
+g.add_node("FAQ_Agent", faq)
+g.add_node("Order_Agent", order)
+g.add_node("Complaint_Agent", complaint)
+
+g.set_entry_point("Router_Agent")
+
+g.add_conditional_edges(
+    "Router_Agent",
+    route,
+    {
+        "FAQ": "FAQ_Agent",
+        "Order": "Order_Agent",
+        "Complaint": "Complaint_Agent"
+    }
+)
+
+g.add_edge("FAQ_Agent", END)
+g.add_edge("Order_Agent", END)
+g.add_edge("Complaint_Agent", END)
+
+app = g.compile()
+
+# Generate graph
+display(Image(app.get_graph().draw_mermaid_png()))
+
+# Test chatbot
+q = "I received a damaged product"
+
+r = app.invoke({
+    "query": q,
+    "category": "",
+    "response": ""
+})
+
+print("User Query:", q)
+print("Category:", r["category"])
+print("Bot Response:", r["response"])
+

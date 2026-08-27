@@ -4,7 +4,7 @@ import os
 import pandas as pd
 from phi.agent import Agent
 from phi.model.groq import Groq
-os.environ["GROQ_API_KEY"]="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"
+os.environ["GROQ_API_KEY"]=""
 df=pd.DataFrame({
     "month":["jan","feb","march"],
     "product":["mob","lap","com"],

@@ -1,0 +1,602 @@
+Q1-Agnoframework
+
+!pip install groq -q
+!pip install -U agno groq yfinance python-dotenv
+import os
+from agno.agent import Agent
+from agno.models.groq import Groq
+from agno.tools.yfinance import YFinanceTools
+os.environ["GROQ_API_KEY"] = "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"
+agent = Agent(
+    model=Groq(id="openai/gpt-oss-120b"),
+    tools=[
+        YFinanceTools(
+            enable_stock_price=True,
+            enable_company_info=True
+        )
+    ],
+    instructions=[
+        "Use tables whenever possible.",
+        "Generate a professional financial report.",
+        "Include current stock price.",
+        "Give a concise summary."
+    ],
+    markdown=True
+)
+
+agent.print_response(
+    "Generate a report on NVIDIA (NVDA)",
+    stream=True
+)
+
+
+q2-a)-planning design
+
+!pip install groq -q
+from groq import Groq
+client=Groq(
+    api_key="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"
+)
+response=client.chat.completions.create(
+    model="openai/gpt-oss-120b",
+    messages=[
+        {
+        "role":"user",
+        "content":"""
+        goal:
+        oraganize a college annual sports event.
+        generate step-by-step plan.
+        """
+        }
+    ]
+)
+print(response.choices[0].message.content)
+
+b)-REACT
+
+from groq import Groq
+client=Groq(
+    api_key="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"
+)
+reponse=client.chat.completions.create(
+    model="openai/gpt-oss-120b",
+    messages=[
+        {
+            "role":"user",
+            "content":"""
+            question:
+            what is 25 * 10?
+            show:
+            thought
+            action
+            observation
+            final response
+            """
+        }
+    ]
+)
+print(reponse.choices[0].message.content)
+
+q3 webapi-langserve
+
+!pip install -q langchain langchain-core langchain-groq langserve fastapi uvicorn sse_starlette nest_asyncio
+!pip install -q langchain langchain-core langchain-groq langserve fastapi uvicorn sse_starlette
+!pip install -q langserve
+!pip install -q langchain-groq
+!pip install -q nest_asyncio
+!pip install -q langchain langchain-core langchain-google-genai langserve fastapi uvicorn sse_starlette nest_asyncio
+
+import uvicorn
+import nest_asyncio
+from dotenv import load_dotenv
+from fastapi import FastAPI
+from langchain_groq import ChatGroq
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from langserve import add_routes
+
+load_dotenv()
+os.environ["GROQ_API_KEY"]="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"
+llm=ChatGroq(
+    model="openai/gpt-oss-120b"
+)
+app=FastAPI()
+parser=StrOutputParser()
+prompt=ChatPromptTemplate.from_messages([
+    ("system","you are an dogt"),
+    ("user","{question}")
+])
+chain=prompt|llm|parser
+add_routes(app,chain,path="/chat")
+nest_asyncio.apply()
+config=uvicorn.Config(
+    app,
+    host="127.0.0.1",
+    port=8003,
+    log_level="info"
+)
+
+server = uvicorn.Server(config)
+
+import threading
+
+thread = threading.Thread(target=server.run, daemon=True)
+thread.start()
+
+import requests
+
+response = requests.post(
+    "http://127.0.0.1:8003/chat/invoke",
+    json={"input": {"question": "What is LangServe?"}}
+)
+
+print(response.json())
+
+q4-self-correcting-coding-assitant
+
+!pip install -q langchain langchain-core langchain-groq
+!pip install -q langchain-openai
+!pip install -q -U langchain langchain-core langchain-community langchain-groq pypdf
+!pip install -q langchain-text-splitters
+!pip uninstall -y langchain langchain-core langchain-community
+!pip install langchain==0.1.20
+!pip uninstall -y langchain langchain-core langchain-community langchain-openai langgraph
+!pip install -U \
+langchain \
+langchain-core \
+langchain-community \
+langchain-openai \
+langgraph \
+faiss-cpu
+!pip install -U langgraph langchain langchain-core langchain-community langchain-openai faiss-cpu tiktoken
+
+import os
+import subprocess
+import tempfile
+from langchain_groq import ChatGroq
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+
+os.environ["GROQ_API_KEY"] = "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"
+
+llm = ChatGroq(model="openai/gpt-oss-120b")
+
+code_prompt = ChatPromptTemplate.from_messages([
+    ("system",
+     "You are an expert Python coding assistant. "
+     "Generate only executable Python code. "
+     "Do not use markdown. Do not explain."),
+    ("user", "{task}")
+])
+
+fix_prompt = ChatPromptTemplate.from_messages([
+    ("system",
+     "You are a self-correcting Python coding assistant. "
+     "Fix the given code using the error message. "
+     "Return only corrected executable Python code. "
+     "Do not use markdown. Do not explain."),
+    ("user",
+     "Task:\n{task}\n\nCode:\n{code}\n\nError:\n{error}")
+])
+
+code_chain = code_prompt | llm | StrOutputParser()
+fix_chain = fix_prompt | llm | StrOutputParser()
+
+
+def clean_code(code):
+    code = code.replace("```python", "").replace("```", "")
+    return code.strip()
+
+
+def run_python_code(code):
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+        f.write(code)
+        file_path = f.name
+
+    result = subprocess.run(
+        ["python", file_path],
+        capture_output=True,
+        text=True,
+        timeout=10
+    )
+
+    if result.returncode == 0:
+        return True, result.stdout
+    else:
+        return False, result.stderr
+
+
+def self_correcting_coding_assistant(task, max_attempts=3):
+    print("USER TASK:")
+    print(task)
+    print("\nGenerating code...\n")
+
+    code = clean_code(code_chain.invoke({"task": task}))
+
+    # Intentionally inject a bug for demonstration
+    if "factorial" in task.lower():
+      code = code.replace("factorial(5)", "fact(5)")
+    for attempt in range(1, max_attempts + 1):
+        print(f"\nAttempt {attempt}")
+        print("-" * 40)
+        print(code)
+
+        success, output = run_python_code(code)
+
+        if success:
+            print("\nCode executed successfully!")
+            print("\nOUTPUT:")
+            print(output)
+            return code
+
+        print("\nError found:")
+        print(output)
+
+        print("\nCorrecting code...\n")
+        code = clean_code(
+            fix_chain.invoke({
+                "task": task,
+                "code": code,
+                "error": output
+            })
+        )
+
+    print("\nCould not fix the code within max attempts.")
+    return code
+final_code = self_correcting_coding_assistant(
+    "Write Python code to calculate factorial of 5 using recursion."
+)
+
+
+q5-finance bot
+
+!pip install -q langgraph langchain langchain-core langchain-groq
+import os
+from typing import TypedDict
+from langgraph.graph import StateGraph,START,END
+from langchain_groq import ChatGroq
+from IPython.display import Image,display
+os.environ["GROQ_API_KEY"]="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"
+llm=ChatGroq(model="openai/gpt-oss-120b")
+class financestate(TypedDict):
+    qsn:str
+    stock:str
+    price:float
+    ans:str
+def extractstock(state:financestate):
+    qsn=state["qsn"].upper()
+    if "APPLE" in qsn or "AAPL" in qsn:
+        stock="AAPL"
+    elif "TESLA" in qsn or "TSLA" in qsn:
+        stock="TSLA"
+    elif "MICROSOFT" in qsn or "MST" in qsn:
+        stock="MST"
+    else:
+        stock="UNKOWN"
+    return{"stock":stock}
+def stockprice(state:financestate):
+    fakeprice={
+        "AAPL":80.0,
+        "TSLA":120.3,
+        "MST":23.4,
+        "UNKOWN":0.0
+    }
+    price=fakeprice[state["stock"]]
+    return {"price":price}
+def answr(state:financestate):
+    prompt=f"""
+    you are finance assistant bot.
+    userqs:{state['qsn']}
+    ustock:{state['stock']}
+    uprice:{state['price']}
+    generate simple finacial response.
+    Do not give investment advice.
+    """
+    response=llm.invoke(prompt)
+    return{"ans":response.content}
+graph=StateGraph(financestate)
+graph.add_node("extractstock",extractstock)
+graph.add_node("stockprice",stockprice)
+graph.add_node("answr",answr)
+graph.add_edge(START,"extractstock")
+graph.add_edge("extractstock","stockprice")
+graph.add_edge("stockprice","answr")
+graph.add_edge("answr",END)
+finance_bot=graph.compile()
+display(
+    Image(finance_bot.get_graph().draw_mermaid_png())
+)
+result=finance_bot.invoke({
+    "qsn":"what is current price of APPLE stock?"
+})
+print(result["ans"])
+
+q6-sales report analyzer llamaindex
+        
+!pip install -q llama-index llama-index-llms-openai-like pandas
+!pip install -q llama-index llama-index-llms-groq llama-index-embeddings-huggingface
+!pip install -q llama-index llama-index-llms-openai-like pandas
+!pip uninstall -y transformers sentence-transformers
+!pip install -q transformers==4.45.2 sentence-transformers==3.1.1 
+pandas
+import os
+import pandas as pd
+from llama_index.core import VectorStoreIndex,Document,Settings
+from llama_index.core.embeddings import MockEmbedding
+from llama_index.llms.openai_like import OpenAILike
+os.environ["GROQ_API_KEY"]="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"
+Settings.llm=OpenAILike(
+    model="openai/gpt-oss-120b",
+    api_base="https://api.groq.com/openai/v1",
+    api_key=os.environ["GROQ_API_KEY"],
+    is_chat_model=True,
+    is_function_calling_model=False
+  
+)
+Settings.embed_model= MockEmbedding(embed_dim=384)
+df = pd.DataFrame({
+    "Month": ["Jan", "Feb", "Mar", "Apr", "May"],
+    "Product": ["Laptop", "Mobile", "Tablet", "Laptop", "Mobile"],
+    "Region": ["South", "North", "East", "West", "South"],
+    "Revenue": [50000, 40000, 25000, 60000, 55000],
+    "Profit": [10000, 8000, 4000, 12000, 11000]
+})
+display(df)
+sales_text=df.to_string(index=False)
+document=Document(
+    text=f"""
+    sales report
+    {sales_text}
+    """
+)
+index=VectorStoreIndex.from_documents([document])
+query_engine=index.as_query_engine()
+response=query_engine.query(
+    "which product has highest revenue?show vcalculations."
+)
+print(response)
+
+q8-data analysis agent
+
+!pip install -q phidata groq pandas
+import os
+import pandas as pd
+from phi.agent import Agent
+from phi.model.groq import Groq
+os.environ["GROQ_API_KEY"]="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"
+df=pd.DataFrame({
+    "month":["jan","feb","march"],
+    "product":["mob","lap","com"],
+    "revenue":[400,600,880],
+    "profit":[12,23,45]
+})
+display(df)
+data_text=df.to_string(index=False)
+agnt=Agent(
+    model=Groq(id="openai/gpt-oss-120b"),
+    instructions=[
+        "you are an data analysis agent",
+        "analyze the given data carefully",
+        "show calculation clearly",
+        "generate report"
+    ],
+    markdown=True
+)
+qsn="which product has highest revenue?show calculation."
+response=agnt.run(
+    f"""
+    here is response
+    {data_text}
+    qsn:{qsn}
+    """
+)
+print(response.content)
+
+q9-Customer Support Chatbot using LangGraph 
+
+!pip install -q langgraph langchain-groq
+!pip install -q -U langgraph langchain-groq langchain-core
+
+import os
+from typing import TypedDict
+from langgraph.graph import StateGraph, END
+from langchain_groq import ChatGroq
+from IPython.display import Image, display
+
+os.environ["GROQ_API_KEY"] ="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"
+
+llm = ChatGroq(model="openai/gpt-oss-120b")
+
+class State(TypedDict):
+    query: str
+    category: str
+    response: str
+
+def router(s):
+    r = llm.invoke(
+        f"Classify as faq, order or complaint. Return one word: {s['query']}"
+    ).content.lower()
+    return {
+        "category": "order" if "order" in r
+        else "complaint" if "complaint" in r else "faq"
+    }
+
+def faq(s):
+    return {"response": llm.invoke(
+        f"Answer politely: {s['query']}"
+    ).content}
+
+def order(s):
+    return {"response": llm.invoke(
+        f"Help with order. Ask for order ID if missing: {s['query']}"
+    ).content}
+
+def complaint(s):
+    return {"response": llm.invoke(
+        f"Apologize and suggest next step: {s['query']}"
+    ).content}
+
+def route(s):
+    return {
+        "faq": "FAQ",
+        "order": "Order",
+        "complaint": "Complaint"
+    }[s["category"]]
+
+g = StateGraph(State)
+
+g.add_node("Router_Agent", router)
+g.add_node("FAQ_Agent", faq)
+g.add_node("Order_Agent", order)
+g.add_node("Complaint_Agent", complaint)
+
+g.set_entry_point("Router_Agent")
+
+g.add_conditional_edges(
+    "Router_Agent",
+    route,
+    {
+        "FAQ": "FAQ_Agent",
+        "Order": "Order_Agent",
+        "Complaint": "Complaint_Agent"
+    }
+)
+
+g.add_edge("FAQ_Agent", END)
+g.add_edge("Order_Agent", END)
+g.add_edge("Complaint_Agent", END)
+
+app = g.compile()
+
+# Generate graph
+display(Image(app.get_graph().draw_mermaid_png()))
+
+# Test chatbot
+q = "I received a damaged product"
+
+r = app.invoke({
+    "query": q,
+    "category": "",
+    "response": ""
+})
+
+print("User Query:", q)
+print("Category:", r["category"])
+print("Bot Response:", r["response"])
+
+q11-AI Research Agent with Autogen
+
+!pip install pyautogen==0.2.35
+!pip uninstall -y autogen autogen-agentchat pyautogen
+
+import os
+from autogen import AssistantAgent, UserProxyAgent
+
+# ------------------------------------
+# 1. Set Groq API Key
+# ------------------------------------
+os.environ["GROQ_API_KEY"] = "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"
+
+
+# ------------------------------------
+# 2. Configure LLM
+# ------------------------------------
+llm_config = {
+    "config_list": [
+        {
+            "model": "openai/gpt-oss-120b",
+            "api_key": os.environ["GROQ_API_KEY"],
+            "base_url": "https://api.groq.com/openai/v1"
+        }
+    ]
+}
+
+# ------------------------------------
+# 3. Create AI Research Agent
+# ------------------------------------
+research_agent = AssistantAgent(
+    name="Research_Agent",
+    system_message="""
+You are an AI Research Agent.
+
+Your task :
+1. Study the given research topic.
+2. Identify important concepts 
+3. Summarize  applications.
+4. Discuss advantages and limitations.
+5. Present the findings in a clear research-report format.
+""",
+    llm_config=llm_config,
+)
+
+# ------------------------------------
+# 4. Create User Proxy Agent
+# ------------------------------------
+user_proxy = UserProxyAgent(
+    name="User_Proxy",
+
+    # No human input during execution
+    human_input_mode="NEVER",
+
+    code_execution_config={
+        "work_dir": "research",
+        "use_docker": False
+    }
+)
+
+# ------------------------------------
+# 5. Start Research Task
+# ------------------------------------
+user_proxy.initiate_chat(
+    research_agent,
+    message="""
+Research the topic:
+
+"Applications of Generative AI in Healthcare"
+
+Prepare a short research report containing:
+- Introduction
+- Important applications
+- Benefits
+- Challenges
+- Future scope
+- Conclusion
+"""
+)
+
+q12-12.	AI Observability with LangSmith 
+
+!pip install -q phidata groq pandas
+# Install:
+# !pip install -U langsmith langchain-groq
+
+import os
+from langchain_groq import ChatGroq
+
+# -----------------------------
+# 1. API Keys
+# -----------------------------
+os.environ["GROQ_API_KEY"] = "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"
+os.environ["LANGSMITH_API_KEY"] = "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"
+
+# Enable LangSmith tracing
+os.environ["LANGSMITH_TRACING"] = "true"
+
+# Optional: project name shown in LangSmith
+os.environ["LANGSMITH_PROJECT"] = "AI-Observability-Demo"
+
+# -----------------------------
+# 2. Create LLM
+# -----------------------------
+llm = ChatGroq(
+    model="openai/gpt-oss-120b"
+)
+
+# -----------------------------
+# 3. Call the model
+# -----------------------------
+response = llm.invoke(
+    "Explain Artificial Intelligence in two sentences."
+)
+
+print(response.content)

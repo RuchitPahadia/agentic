@@ -1,0 +1,52 @@
+!pip install -q langchain langchain-core langchain-groq langserve fastapi uvicorn sse_starlette nest_asyncio
+!pip install -q langchain langchain-core langchain-groq langserve fastapi uvicorn sse_starlette
+!pip install -q langserve
+!pip install -q langchain-groq
+!pip install -q nest_asyncio
+!pip install -q langchain langchain-core langchain-google-genai langserve fastapi uvicorn sse_starlette nest_asyncio
+
+import uvicorn
+import nest_asyncio
+from dotenv import load_dotenv
+from fastapi import FastAPI
+from langchain_groq import ChatGroq
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from langserve import add_routes
+
+load_dotenv()
+os.environ["GROQ_API_KEY"]=""
+llm=ChatGroq(
+    model="openai/gpt-oss-120b"
+)
+app=FastAPI()
+parser=StrOutputParser()
+prompt=ChatPromptTemplate.from_messages([
+    ("system","you are an dogt"),
+    ("user","{question}")
+])
+chain=prompt|llm|parser
+add_routes(app,chain,path="/chat")
+nest_asyncio.apply()
+config=uvicorn.Config(
+    app,
+    host="127.0.0.1",
+    port=8003,
+    log_level="info"
+)
+
+server = uvicorn.Server(config)
+
+import threading
+
+thread = threading.Thread(target=server.run, daemon=True)
+thread.start()
+
+import requests
+
+response = requests.post(
+    "http://127.0.0.1:8003/chat/invoke",
+    json={"input": {"question": "What is LangServe?"}}
+)
+
+print(response.json())

@@ -1,0 +1,61 @@
+
+!pip install -q langgraph langchain langchain-core langchain-groq
+import os
+from typing import TypedDict
+from langgraph.graph import StateGraph,START,END
+from langchain_groq import ChatGroq
+from IPython.display import Image,display
+os.environ["GROQ_API_KEY"]=""
+llm=ChatGroq(model="openai/gpt-oss-120b")
+class financestate(TypedDict):
+    qsn:str
+    stock:str
+    price:float
+    ans:str
+def extractstock(state:financestate):
+    qsn=state["qsn"].upper()
+    if "APPLE" in qsn or "AAPL" in qsn:
+        stock="AAPL"
+    elif "TESLA" in qsn or "TSLA" in qsn:
+        stock="TSLA"
+    elif "MICROSOFT" in qsn or "MST" in qsn:
+        stock="MST"
+    else:
+        stock="UNKOWN"
+    return{"stock":stock}
+def stockprice(state:financestate):
+    fakeprice={
+        "AAPL":80.0,
+        "TSLA":120.3,
+        "MST":23.4,
+        "UNKOWN":0.0
+    }
+    price=fakeprice[state["stock"]]
+    return {"price":price}
+def answr(state:financestate):
+    prompt=f"""
+    you are finance assistant bot.
+    userqs:{state['qsn']}
+    ustock:{state['stock']}
+    uprice:{state['price']}
+    generate simple finacial response.
+    Do not give investment advice.
+    """
+    response=llm.invoke(prompt)
+    return{"ans":response.content}
+graph=StateGraph(financestate)
+graph.add_node("extractstock",extractstock)
+graph.add_node("stockprice",stockprice)
+graph.add_node("answr",answr)
+graph.add_edge(START,"extractstock")
+graph.add_edge("extractstock","stockprice")
+graph.add_edge("stockprice","answr")
+graph.add_edge("answr",END)
+finance_bot=graph.compile()
+display(
+    Image(finance_bot.get_graph().draw_mermaid_png())
+)
+result=finance_bot.invoke({
+    "qsn":"what is current price of APPLE stock?"
+})
+print(result["ans"])
