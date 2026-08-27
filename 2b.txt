@@ -1,0 +1,19 @@
+#2b
+from groq import Groq
+client=Groq(
+    api_key="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"
+)
+response=client.chat.completions.create(
+    model="openai/gpt-oss-120b",
+    messages=[
+        {
+        "role":"user",
+        "content":"""
+        goal:
+        oraganize a college annual sports event.
+        generate step-by-step plan.
+        """
+        }
+    ]
+)
+print(response.choices[0].message.content)

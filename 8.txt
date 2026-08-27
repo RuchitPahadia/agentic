@@ -1,0 +1,34 @@
+#8
+!pip install -q phidata groq pandas
+import os
+import pandas as pd
+from phi.agent import Agent
+from phi.model.groq import Groq
+os.environ["GROQ_API_KEY"]="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"
+df=pd.DataFrame({
+    "month":["jan","feb","march"],
+    "product":["mob","lap","com"],
+    "revenue":[400,600,880],
+    "profit":[12,23,45]
+})
+display(df)
+data_text=df.to_string(index=False)
+agnt=Agent(
+    model=Groq(id="openai/gpt-oss-120b"),
+    instructions=[
+        "you are an data analysis agent",
+        "analyze the given data carefully",
+        "show calculation clearly",
+        "generate report"
+    ],
+    markdown=True
+)
+qsn="which product has highest revenue?show calculation."
+response=agnt.run(
+    f"""
+    here is response
+    {data_text}
+    qsn:{qsn}
+    """
+)
+print(response.content)
