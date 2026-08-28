@@ -1,0 +1,43 @@
+!pip install -q cohere numpy
+
+import os, cohere, numpy as np
+
+os.environ["COHERE_API_KEY"] = "ljRVKWZBvyJldVgFmhRocrCzASXSUn4ScUBGZHLN"
+co = cohere.ClientV2(api_key=os.environ["COHERE_API_KEY"])
+
+documents = [
+    "Electric vehicles are growing due to rising fuel prices and government incentives.",
+    "The Indian EV market is driven by two-wheelers and urban mobility demand.",
+    "Challenges include charging infrastructure, battery cost, and range anxiety.",
+    "Key competitors: Tata Motors, Mahindra Electric, Ola Electric, Ather Energy.",
+]
+
+doc_emb = np.array(co.embed(model="embed-v4.0", texts=documents,
+                   input_type="search_document", embedding_types=["float"]).embeddings.float)
+
+def cosine_sim(a, b):
+    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+
+def retrieve(query, top_k=5):
+    q_emb = np.array(co.embed(model="embed-v4.0", texts=[query],
+             input_type="search_query", embedding_types=["float"]).embeddings.float[0])
+    scores = [cosine_sim(q_emb, d) for d in doc_emb]
+    return [doc for doc, _ in sorted(zip(documents, scores), key=lambda x: -x[1])[:top_k]]
+
+def rerank(query, docs, top_n=3):
+    result = co.rerank(model="rerank-v3.5", query=query, documents=docs, top_n=top_n)
+    return [docs[r.index] for r in result.results]
+
+def market_research_agent(query):
+    final_docs = rerank(query, retrieve(query))
+    context = "\n".join(f"- {d}" for d in final_docs)
+    prompt = f"""You are a Market Research Agent.
+Query: {query}
+Relevant Info:
+{context}
+
+Prepare a report with: Market Overview, Key Drivers, Challenges, Competitor Landscape, Opportunities, Recommendation."""
+    return co.chat(model="command-a-03-2025",
+                    messages=[{"role": "user", "content": prompt}]).message.content[0].text
+
+print(market_research_agent("Prepare a market research report on electric vehicles in India"))
