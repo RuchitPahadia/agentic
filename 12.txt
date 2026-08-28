@@ -1,0 +1,19 @@
+#12
+# !pip install -U langsmith langchain-groq
+
+import os
+from langchain_groq import ChatGroq
+
+os.environ["GROQ_API_KEY"] = ""
+os.environ["LANGSMITH_API_KEY"] = ""
+
+
+
+llm = ChatGroq(
+    model="openai/gpt-oss-120b"
+)
+response = llm.invoke(
+    "Explain Artificial Intelligence in 10 sentences."
+)
+
+print(response.content)
